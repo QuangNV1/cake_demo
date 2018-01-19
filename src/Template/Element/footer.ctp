@@ -1,0 +1,1 @@
+<p class="text-center">Copyright &copy; - 2017. YumeAgent Vietnam Dev Team - All rights reversed.</p>

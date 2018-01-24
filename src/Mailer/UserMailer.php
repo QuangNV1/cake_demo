@@ -34,4 +34,23 @@ class UserMailer extends Mailer
             ->layout('customLayout');
     }
 
+    public function forgotPasswordEmail($user, $url){
+        $subject = 'reset password';
+        $this->emailFormat()
+            ->setFrom('yumeAgentTestEmail@localhost' , 'YumeAgent Vietnam')
+            ->to($user->email)
+            ->emailFormat('html')
+            ->subject($subject)
+            ->viewVars([
+                'username' => $user->username,
+                'useremail' => $user->email,
+                'userpassword' => $user->password,
+                'usertime' => $user->created,
+                'urlVerify' => $url,
+                'imgSrc' => WWW_ROOT.'img'.DS.'yume.png'
+            ])
+            ->template('resetpw')
+            ->layout('customLayout');
+    }
+
 }

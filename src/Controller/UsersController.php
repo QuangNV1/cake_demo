@@ -4,6 +4,11 @@ namespace App\Controller;
 use App\Controller\AppController;
 use Cake\Mailer\MailerAwareTrait;
 use Cake\Mailer\Email;
+use Cake\Routing\Route\Route;
+use Cake\Routing\Router;
+use Cake\Utility\Security;
+use Cake\Utility\Text;
+
 /**
  * Users Controller
  *
@@ -159,6 +164,80 @@ class UsersController extends AppController
         $session = $this->request->session();
         $session->destroy();
         $this->redirect(['controller' => 'home', 'action' => 'index']);
+    }
+
+    public function forgotPassword()
+    {
+        if ($this->request->is('post'))
+        {
+            if (!empty($this->request->data))
+            {
+                $email = $this->request->data['email'];
+                $user = $this->Users->findByEmail($email)->first();
+
+
+                if (!empty($user))
+                {
+                    $password = sha1(Text::uuid());
+
+                    $password_token = Security::hash($password, 'sha256', true);
+
+                    $hashval = sha1($user->username . rand(0, 100));
+
+                    $user->password_reset_token = $password_token;
+                    $user->hashval = $hashval;
+
+                    $reset_token_link = Router::url(['controller' => 'Users', 'action' => 'resetPassword'], TRUE) . '/' . $password_token . '#' . $hashval;
+                    $this->getMailer('User')->send('forgotPasswordEmail', [$user,$reset_token_link]);
+
+                    $this->Users->save($user);
+                    $this->Flash->success('Please click on password reset link, sent in your email address to reset password.');
+
+                }
+                else
+                {
+                    $this->Flash->error('Sorry! Email address is not available here.');
+                }
+            }
+        }
+    }
+
+    public function resetPassword($token = null) {
+        if (!empty($token)) {
+
+            $user = $this->Users->findByPasswordResetToken($token)->first();
+            debug($user);
+
+            if ($user) {
+                if (!empty($this->request->data)) {
+                    $user = $this->Users->patchEntity($user, [
+                        'password' => $this->request->data['new_password'],
+                        'new_password' => $this->request->data['new_password'],
+                        'confirm_password' => $this->request->data['confirm_password']
+                    ], ['validate' => 'password']
+                    );
+
+                    $hashval_new = sha1($user->username . rand(0, 100));
+                    $user->password_reset_token = $hashval_new;
+
+                    if ($this->Users->save($user)) {
+                        $this->Flash->success('Your password has been changed successfully');
+                        $emaildata = ['name' => $user->first_name, 'email' => $user->email];
+                        $this->getMailer('User')->send('changePasswordEmail', [$emaildata]); //Send Email functionality
+
+                        $this->redirect(['action' => 'view']);
+                    } else {
+                        $this->Flash->error('Error changing password. Please try again!');
+                    }
+                }
+            } else {
+                $this->Flash->error('Sorry your password token has been expired.');
+            }
+        } else {
+            $this->Flash->error('Error loading password reset.');
+        }
+        $this->set(compact('user'));
+        $this->set('_serialize', ['user']);
     }
 
 }
